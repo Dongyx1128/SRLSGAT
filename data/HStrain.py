@@ -5,10 +5,8 @@ import torch
 import os
 import utils
 
-
 def is_mat_file(filename):
     return any(filename.endswith(extension) for extension in [".mat"])
-
 
 class HSTrainingData(data.Dataset):
     def __init__(self, image_dir, augment=None, use_3D=False):

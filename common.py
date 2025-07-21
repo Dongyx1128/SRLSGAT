@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 def default_conv(in_channels, out_channels, kernel_size, bias=True, dilation=1):        # Conv2d input is [B，C，H，W]。W=((w-k+2p)//s)+1
     if dilation == 1:
         return nn.Conv2d(
@@ -18,7 +17,6 @@ def default_conv(in_channels, out_channels, kernel_size, bias=True, dilation=1):
         return nn.Conv2d(
             in_channels, out_channels, kernel_size,
             padding=3, bias=bias, dilation=dilation)
-
 
 def prosessing_conv(in_channels, out_channels, kernel_size, stride, bias=True):      # W=((w-k+2p)//s)+1。[C,H,W]->[C,H/s,W/s]: k-2p=s。
     return nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding=kernel_size//2, bias=bias)
@@ -41,7 +39,6 @@ class ProcessLayer_Graph(nn.Module):
     def forward(self, x):
         y = self.last(x)
         return y
-
 
 class GraphAttentionLayer(nn.Module):
     """
@@ -75,16 +72,16 @@ class GraphAttentionLayer(nn.Module):
         """
         # [B_batch,N_nodes,C_channels]
         B, N, C = x.size()
-        h = torch.matmul(x, self.W)                                                     # [B,N,C]=[B, N, out_features]
+        h = torch.matmul(x, self.W)     # [B,N,C]=[B, N, out_features]
         # print("h.shape:", h.shape)
-        a_input = torch.cat([h.repeat(1, 1, N).view(-1, N*N, self.out_features), h.repeat(1, N, 1)], dim=2).view(-1, N, N, 2*self.out_features)  # [B, N, N, 2*out_features]
+        a_input = torch.cat([h.repeat(1, 1, N).view(-1, N*N, self.out_features), h.repeat(1, N, 1)], dim=2).view(-1, N, N, 2*self.out_features)     # [B, N, N, 2*out_features]
         # print("a_input.shape:", a_input.shape)
         e = self.leakyrelu(torch.matmul(a_input, self.a).squeeze(3))
         zero_vec = -1e12 * torch.ones_like(e)
-        attention = torch.where(adj>0, e, zero_vec)                                     # [B, N, N]
-        attention = F.softmax(attention, dim=2)                                         # [B,N,N]
+        attention = torch.where(adj>0, e, zero_vec)     # [B, N, N]
+        attention = F.softmax(attention, dim=2)     # [B,N,N]
         # attention = F.dropout(attention, self.dropout, training=self.training)
-        h_prime = torch.bmm(attention, h)                                               # [B,N,N]*[B,N,out_features]-> [B,N,out_features]
+        h_prime = torch.bmm(attention, h)   # [B,N,N]*[B,N,out_features]-> [B,N,out_features]
 
         if self.concat:
             return F.relu(h_prime)
@@ -93,7 +90,6 @@ class GraphAttentionLayer(nn.Module):
 
     def __repr__(self):
         return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'
-
 
 class GAT(nn.Module):
     def __init__(self, in_features, out_features, dropout, alpha, n_heads):
@@ -119,7 +115,6 @@ class GAT(nn.Module):
         x = F.elu(self.out_att(x, adj))
         return F.log_softmax(x, dim=2)
 
-
 class CALayer(nn.Module):
     def __init__(self, in_channels, reduction_rate=16):
         super(CALayer, self).__init__()
@@ -137,7 +132,6 @@ class CALayer(nn.Module):
         y = self.avg_pool(x)
         y = self.conv_du(y)
         return x * y
-
 
 class SpatialResBlock(nn.Module):
     def __init__(self, conv, in_feats, kernel_size, bias=True, bn=False, act=nn.ReLU(True), res_scale=1):
@@ -162,7 +156,6 @@ class SpatialResBlock(nn.Module):
 
         return res
 
-
 class SpectralAttentionResBlock(nn.Module):
     def __init__(self, conv, in_feats, kernel_size, bias=True, bn=False, act=nn.ReLU(True), res_scale=1):
         super(SpectralAttentionResBlock, self).__init__()
@@ -183,7 +176,6 @@ class SpectralAttentionResBlock(nn.Module):
         res = self.body(x).mul(self.res_scale)
         res += x
         return res
-
 
 class Upsampler(nn.Sequential):
     def __init__(self, conv, up_scale, in_feats, bn=False, act=False, bias=True):

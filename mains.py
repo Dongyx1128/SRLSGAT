@@ -1,19 +1,14 @@
 import argparse
 import os
 import sys
-import random
 import time
 import torch
-import cv2
-import math
 import numpy as np
 import scipy.io as sio
-import torch.backends.cudnn as cudnn
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 from torchnet import meter
-import utils
 import json
 
 from data import HSTrainingData
@@ -84,7 +79,6 @@ def main():
         test(args)
     pass
 
-
 def train(args):
     device = torch.device("cuda" if args.cuda else "cpu")
     # args.seed = random.randint(1, 10000)
@@ -149,7 +143,7 @@ def train(args):
     # add L2 regularization
     optimizer = Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
     epoch_meter = meter.AverageValueMeter()
-    writer = SummaryWriter('runs/' + model_title + '_' + str(time.ctime()))
+    writer = SummaryWriter('runs/' + model_title + '_' + str(time.ctime()).replace(' ', '_'))
 
     print('===> Start training')
     for e in range(start_epoch, args.epochs):
@@ -202,55 +196,17 @@ def train(args):
         torch.save(net.state_dict(), save_model_path)
     print("\nDone, trained model saved at", save_model_path)
 
-
-# ## Save the testing results
-    # print("Running testset")
-    # print('===> Loading testset')
-    # test_set = HSTestData(image_dir=test_path)
-    # test_loader = DataLoader(test_set, batch_size=1, shuffle=False)
-    # images_name = [x for x in os.listdir(test_path)]
-    # print('===> Start testing')
-    # net.eval().cuda()
-    # with torch.no_grad():
-    #     output = []
-    #     test_number = 0
-    #     for i, (x, lms, gt) in enumerate(test_loader):
-    #         x, lms, gt = x.to(device), lms.to(device), gt.to(device)
-    #         y = net(x, lms)
-    #         y, gt = y.squeeze().cpu().numpy().transpose(1, 2, 0), gt.squeeze().cpu().numpy().transpose(1, 2, 0)
-    #         y = y[:gt.shape[0], :gt.shape[1], :]
-    #         if i == 0:
-    #             indices = quality_assessment(gt, y, data_range=1., ratio=4)
-    #         else:
-    #             indices = sum_dict(indices, quality_assessment(gt, y, data_range=1., ratio=4))
-    #         output.append(y)
-    #         test_number += 1
-    #         sio.savemat(result_path + images_name[i], {'pred': y, 'gt': gt, 'ms_bicubic': lms})
-    #     for index in indices:
-    #         indices[index] = indices[index] / test_number
-    #
-    # save_dir = model_title + '.npy'
-    # np.save(save_dir, output)
-    # print("Test finished, test results saved to .npy file at ", save_dir)
-    # print(indices)
-    #
-    # QIstr = model_title + '_' + str(time.ctime()) + ".txt"
-    # json.dump(indices, open(QIstr, 'w'))
-
-
 def sum_dict(a, b):
     temp = dict()
     for key in a.keys() | b.keys():
         temp[key] = sum([d.get(key, 0) for d in (a, b)])
     return temp
 
-
 def adjust_learning_rate(start_lr, optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 50 epochs"""
     lr = start_lr * (0.1 ** (epoch // 30))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
-
 
 def validate(args, loader, model, criterion):
     device = torch.device("cuda" if args.cuda else "cpu")
@@ -270,7 +226,6 @@ def validate(args, loader, model, criterion):
     # back to training mode
     model.train()
     return epoch_meter.value()[0]
-
 
 def test(args):
     print("Running testset")
@@ -303,7 +258,6 @@ def test(args):
         state_dict = torch.load(model_name)
         model.load_state_dict(state_dict)
         model.to(device).eval()
-        mse_loss = torch.nn.MSELoss()
         output = []
         test_number = 0
         for i, (x, lms, gt) in enumerate(test_loader):
@@ -319,7 +273,7 @@ def test(args):
                 indices = sum_dict(indices, quality_assessment(gt, y, data_range=1., ratio=4))
             output.append(y)
             test_number += 1
-            # sio.savemat(result_path + images_name[i], {'pred': y, 'gt': gt, 'ms_bicubic': lms})
+            sio.savemat(result_path + images_name[i], {'pred': y, 'gt': gt, 'ms_bicubic': lms})
         for index in indices:
             indices[index] = indices[index] / test_number
 
@@ -328,9 +282,8 @@ def test(args):
     print("Test finished, test results saved to .npy file at ", save_dir)
     print(indices)
 
-    QIstr = model_title + '_' + str(time.ctime()) + ".txt"
+    QIstr = '/home/shiyanshi/ProjectCode/dyx/SR/SRLSGAT/metrics/' + model_title + '_' + str(time.ctime()).replace(' ', '_') + ".txt"
     json.dump(indices, open(QIstr, 'w'))
-
 
 def save_checkpoint(args, model, epoch):
     device = torch.device("cuda" if args.cuda else "cpu")
@@ -344,7 +297,6 @@ def save_checkpoint(args, model, epoch):
     torch.save(state, ckpt_model_path)
     model.to(device).train()
     print("Checkpoint saved to {}".format(ckpt_model_path))
-
 
 if __name__ == "__main__":
     main()

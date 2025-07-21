@@ -28,4 +28,3 @@ for i=1:length(pat_col_num)
         index = index + 1;
     end
 end
-        

@@ -1,15 +1,9 @@
 from thop import profile
 from thop import clever_format
 import math
-import copy
-import numpy
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.nn import Dropout, Softmax, Linear, Conv2d, LayerNorm
 from common import *
-import scipy.sparse as sp
-from scipy.spatial.distance import cdist
 from SRLSGAT import *
 
 # device = torch.device("cpu")

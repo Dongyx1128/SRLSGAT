@@ -2,7 +2,6 @@ import numpy as np
 from scipy.signal import convolve2d
 from skimage.measure import compare_psnr, compare_ssim
 
-
 def compare_ergas(x_true, x_pred, ratio):
     """
     Calculate ERGAS, ERGAS offers a global indication of the quality of fused image.The ideal value is 0.
@@ -21,7 +20,6 @@ def compare_ergas(x_true, x_pred, ratio):
         tmp = r_mse / (np.mean(vec_x) ** 2)
         sum_ergas += tmp
     return (100 / ratio) * np.sqrt(sum_ergas / x_true.shape[0])
-
 
 def compare_sam(x_true, x_pred):
     """
@@ -43,7 +41,6 @@ def compare_sam(x_true, x_pred):
     sam_deg = (sum_sam / num) * 180 / np.pi
     return sam_deg
 
-
 def compare_corr(x_true, x_pred):
     """
     Calculate the cross correlation between x_pred and x_true.
@@ -55,7 +52,6 @@ def compare_corr(x_true, x_pred):
     numerator = np.sum(x_true * x_pred, axis=1).reshape(-1, 1)
     denominator = np.sqrt(np.sum(x_true * x_true, axis=1) * np.sum(x_pred * x_pred, axis=1)).reshape(-1, 1)
     return (numerator / denominator).mean()
-
 
 def img_2d_mat(x_true, x_pred):
     """
@@ -72,7 +68,6 @@ def img_2d_mat(x_true, x_pred):
         y_mat[i] = x_pred[:, :, i].reshape((1, -1))
     return x_mat, y_mat
 
-
 def compare_rmse(x_true, x_pred):
     """
     Calculate Root mean squared error
@@ -82,7 +77,6 @@ def compare_rmse(x_true, x_pred):
     """
     x_true, x_pred = x_true.astype(np.float32), x_pred.astype(np.float32)
     return np.linalg.norm(x_true - x_pred) / (np.sqrt(x_true.shape[0] * x_true.shape[1] * x_true.shape[2]))
-
 
 def compare_mpsnr(x_true, x_pred, data_range):
     """
@@ -94,9 +88,7 @@ def compare_mpsnr(x_true, x_pred, data_range):
     channels = x_true.shape[2]
     total_psnr = [compare_psnr(im_true=x_true[:, :, k], im_test=x_pred[:, :, k], data_range=data_range)
                   for k in range(channels)]
-
     return np.mean(total_psnr)
-
 
 def compare_mssim(x_true, x_pred, data_range, multidimension):
     """
@@ -108,9 +100,7 @@ def compare_mssim(x_true, x_pred, data_range, multidimension):
     """
     mssim = [compare_ssim(X=x_true[:, :, i], Y=x_pred[:, :, i], data_range=data_range, multidimension=multidimension)
              for i in range(x_true.shape[2])]
-
     return np.mean(mssim)
-
 
 def compare_sid(x_true, x_pred):
     """
@@ -127,7 +117,6 @@ def compare_sid(x_true, x_pred):
                      np.sum(x_true[:, :, i] * np.log10((x_true[:, :, i] + 1e-3) / (x_pred[:, :, i] + 1e-3))))
     return np.mean(err / (x_true.shape[1] * x_true.shape[0]))
 
-
 def compare_appsa(x_true, x_pred):
     """
     :param x_true:
@@ -142,7 +131,6 @@ def compare_appsa(x_true, x_pred):
     appsa = np.arccos(cos)
     return np.sum(appsa) / (x_true.shape[1] * x_true.shape[0])
 
-
 def compare_mare(x_true, x_pred):
     """
     :param x_true:
@@ -154,7 +142,6 @@ def compare_mare(x_true, x_pred):
     abs_diff = np.abs(diff)
     relative_abs_diff = np.divide(abs_diff, x_true + 1)  # added epsilon to avoid division by zero.
     return np.mean(relative_abs_diff)
-
 
 def img_qi(img1, img2, block_size=8):
     N = block_size ** 2
@@ -182,14 +169,12 @@ def img_qi(img1, img2, block_size=8):
     quality_map[index] = numerator[index] / denominator[index]
     return quality_map.mean()
 
-
 def compare_qave(x_true, x_pred, block_size=8):
     n_bands = x_true.shape[2]
     q_orig = np.zeros(n_bands)
     for idim in range(n_bands):
         q_orig[idim] = img_qi(x_true[:, :, idim], x_pred[:, :, idim], block_size)
     return q_orig.mean()
-
 
 def quality_assessment(x_true, x_pred, data_range, ratio, multi_dimension=False, block_size=8):
     """

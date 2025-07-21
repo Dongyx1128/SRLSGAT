@@ -3,8 +3,6 @@ import torch.utils.data as data
 import scipy.io as sio
 import torch
 import os
-import utils
-
 
 def is_mat_file(filename):
     return any(filename.endswith(extension) for extension in [".mat"])

@@ -1,6 +1,5 @@
 import torch
 
-
 class HybridLoss(torch.nn.Module):
     def __init__(self, lamd=1e-1, spatial_tv=False, spectral_tv=False):
         super(HybridLoss, self).__init__()
@@ -22,7 +21,6 @@ class HybridLoss(torch.nn.Module):
         total_loss = loss + spatial_TV + spectral_TV
         return total_loss
 
-
 # from https://github.com/jxgu1016/Total_Variation_Loss.pytorch with slight modifications
 class TVLoss(torch.nn.Module):
     def __init__(self, weight=1.0):
@@ -43,7 +41,6 @@ class TVLoss(torch.nn.Module):
 
     def _tensor_size(self, t):
         return t.size()[1] * t.size()[2] * t.size()[3]
-
 
 class TVLossSpectral(torch.nn.Module):
     def __init__(self, weight=1.0):

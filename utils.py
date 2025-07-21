@@ -4,7 +4,6 @@ import torch
 import cv2
 from torch.utils.data import DataLoader
 
-
 def load_dataset(dataset='train'):
     num_channels = 3
     if num_channels == 1:
@@ -22,7 +21,6 @@ def load_dataset(dataset='train'):
         print('Loading test datasets...')
         test_set = get_test_set(data_dir, set_name, 4, is_gray=is_gray)
         return DataLoader(dataset=test_set, num_workers=8, batch_size=16, shuffle=False)
-
 
 def data_augmentation(label, mode=0):
     if mode == 0:
@@ -50,7 +48,6 @@ def data_augmentation(label, mode=0):
         # rotate 270 degree and flip
         return np.flipud(np.rot90(label, k=3))
 
-
 # rescale every channel to between 0 and 1
 def channel_scale(img):
     eps = 1e-5
@@ -59,18 +56,15 @@ def channel_scale(img):
     output = (img - min_list) / (max_list - min_list + eps)
     return output
 
-
 # up sample before feeding into network
 def upsample(img, ratio):
     [h, w, _] = img.shape
     return cv2.resize(img, (ratio * h, ratio * w), interpolation=cv2.INTER_CUBIC)
 
-
 def bicubic_downsample(img, ratio):
     [h, w, _] = img.shape
     new_h, new_w = int(ratio * h), int(ratio * w)
     return cv2.resize(img, (new_h, new_w), interpolation=cv2.INTER_CUBIC)
-
 
 def wald_downsample(data, ratio):
     [h, w, c] = data.shape
@@ -82,11 +76,9 @@ def wald_downsample(data, ratio):
     out = np.concatenate(out, axis=2)
     return out
 
-
 def save_result(result_dir, out):
     out = out.numpy().transpose((0, 2, 3, 1))
     sio.savemat(result_dir, {'output': out})
-
 
 def sam_loss(y, ref):
     (b, ch, h, w) = y.size()
@@ -101,7 +93,6 @@ def sam_loss(y, ref):
     sam = torch.sum(sam) / (b * h * w)
     return sam
 
-
 def extract_RGB(y):
     # take 4-2-1 band (R-G-B) for WV-3
     R = torch.unsqueeze(torch.mean(y[:, 4:8, :, :], 1), 1)
@@ -109,7 +100,6 @@ def extract_RGB(y):
     B = torch.unsqueeze(torch.mean(y[:, 0:2, :, :], 1), 1)
     y_RGB = torch.cat((R, G, B), 1)
     return y_RGB
-
 
 def extract_edge(data):
     N = data.shape[0]
@@ -121,13 +111,11 @@ def extract_edge(data):
             out[i, :, :, :] = data[i, :, :, :] - cv2.boxFilter(data[i, :, :, :], -1, (5, 5))
     return out
 
-
 def normalize_batch(batch):
     # normalize using imagenet mean and std
     mean = torch.Tensor([0.485, 0.456, 0.406]).view(-1, 1, 1).cuda()
     std = torch.Tensor([0.229, 0.224, 0.225]).view(-1, 1, 1).cuda()
     return (batch - mean) / std
-
 
 def add_channel(rgb):
     # initialize other channels using the average of RGB from VGG
@@ -136,7 +124,6 @@ def add_channel(rgb):
     B = torch.unsqueeze(y[:, 2, :, :], 1)
     all_channel = torch.cat((B, B, G, G, R, R, R, R), 1)
     return all_channel
-
 
 # from LapSRN
 class L1_Charbonnier_loss(torch.nn.Module):

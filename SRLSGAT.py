@@ -1,12 +1,10 @@
 import math
 import copy
-import numpy
+import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.nn import Dropout, Softmax, Linear, Conv2d, LayerNorm
+from torch.nn import LayerNorm
 from common import *
-import scipy.sparse as sp
 from scipy.spatial.distance import cdist
 import pdb
 
@@ -51,7 +49,7 @@ class BiLSTM2D(nn.Module):
 
     def forward(self, x):
         B, N, C = x.shape
-        H, W = int(numpy.sqrt(N)), int(numpy.sqrt(N))
+        H, W = int(np.sqrt(N)), int(np.sqrt(N))
         # x = x.permute(0, 2, 1)  # [B, N, C] ---> [B, C, N]
         x = x.contiguous().view(B, H, W, C)
 
@@ -61,6 +59,10 @@ class BiLSTM2D(nn.Module):
         # h_n: (num_layers * num_directions, batch_size, hidden_size),
         # c_n: (num_layers * num_directions, batch_size, hidden_size),
         # x: input tensor shape: (B, H, W, C)
+        v, (v_n, v_n) = self.LSTM_v(x.permute(0, 2, 1, 3).reshape(-1, H, C))
+        v = v.reshape(B, H, W, -1).permute(0, 2, 1, 3)
+        h, (h_n, c_n) = self.LSTM_h(x.reshape(-1, W, C))
+        h = h.reshape(B, H, W, -1)
         x = torch.cat([v, h], dim=-1)
         # print("x.shape:", x.shape)
         res = self.fc(x)
@@ -152,12 +154,53 @@ class Weighted_adj(nn.Module):
         # y = torch.reshape(x, [B, C, H * W])
         # N = H * W
         # adj:[N, N], 1 if both nodes have edges, 0 otherwise.
+        adj_euclidean = torch.zeros(B, N, N).cuda()
+        adj_chebyshev = torch.zeros(B, N, N).cuda()
+        adj_corrcoef = torch.zeros(B, N, N).cuda()
+        
+        # k = 5
+        for b in range(B):
+            dist1 = cdist(x[b, :, :].cpu().detach().numpy(), x[b, :, :].cpu().detach().numpy(), metric='euclidean')
+            dist1 = torch.from_numpy(dist1).type(torch.FloatTensor).cuda()
+            dist1 = torch.unsqueeze(dist1, 0)
+            adj_euclidean[b, :, :] = dist1
+
+            dist2 = cdist(x[b, :, :].cpu().detach().numpy(), x[b, :, :].cpu().detach().numpy(), metric='chebyshev')
+            dist2 = torch.from_numpy(dist2).type(torch.FloatTensor).cuda()
+            dist2 = torch.unsqueeze(dist2, 0)
+            adj_chebyshev[b, :, :] = dist2
+
+            dist3 = np.corrcoef(x[b, :, :].cpu().detach().numpy())
+            dist3 = torch.from_numpy(dist3).type(torch.FloatTensor).cuda()
+            dist3 = torch.unsqueeze(dist3, 0)
+            adj_corrcoef[b, :, :] = dist3
         return adj_euclidean, adj_chebyshev, adj_corrcoef
 
     def forward(self, x):
         # [batch_size, num_patches, total_embed_dim]
         B, N, C = x.shape
         # print("x_norm?", x)
+        adj_euclidean, adj_chebyshev, adj_corrcoef = self.Norm_dynamic_adj(x)
+        a, b, c = adj_euclidean.shape
+        sums = b * b
+
+        eucl_qkv = adj_euclidean.reshape(B, N, 1, self.num_heads, c // self.num_heads).permute(2, 0, 3, 1, 4)
+        cheb_qkv = adj_chebyshev.reshape(B, N, 1, self.num_heads, c // self.num_heads).permute(2, 0, 3, 1, 4)
+        corr_qkv = adj_corrcoef.reshape(B, N, 1, self.num_heads, c // self.num_heads).permute(2, 0, 3, 1, 4)
+
+        q, k, v = eucl_qkv[0], cheb_qkv[0], corr_qkv[0]
+
+        attn = (q @ k.transpose(-2, -1)) * self.scale
+        attn = attn.softmax(dim=-1)
+
+        weighted_adj = (attn @ v).transpose(1, 2).reshape(B, N, c)
+        weight_adj = weighted_adj.reshape(B, 1, sums)
+        weight_adj_cpu = weight_adj.cpu().numpy()
+        sums_elements = np.floor_divide(sums, 6)
+        weighted_adj = np.where(weight_adj_cpu.argsort(2).argsort(2) >= (sums - sums_elements), 1, 0)
+        weighted_adj = weighted_adj.reshape(B, b, c)
+        weighted_adj = torch.from_numpy(weighted_adj).type(torch.FloatTensor).cuda()
+
         return weighted_adj
 
 
@@ -225,7 +268,7 @@ class Decoder(nn.Module):
 
     def forward(self, x):
         B, N, C = x.shape
-        H, W = int(numpy.sqrt(N)), int(numpy.sqrt(N))
+        H, W = int(np.sqrt(N)), int(np.sqrt(N))
         x = x.permute(0, 2, 1)  # [B, N, C] ---> [B, C, N]
         x = x.contiguous().view(B, C, H, W)
         # print("xxx.shape:", x.shape)
